@@ -1,5 +1,5 @@
 # A testing environment for ips-cc
-A Docker container that downloads Debian, install all the dependencies for ips-cc, installs NetfilterQueue and ips-cc.  
+A Docker container that downloads Debian, installs all the dependencies for ips-cc, installs NetfilterQueue and ips-cc.  
 After the installation you can use the provided `./startTesting.sh` script to test ips-cc.
 To git pull (update) to a newest ips-cc version, use `./updateIPS.sh`.
 
