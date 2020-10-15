@@ -20,4 +20,5 @@ To git pull (update) to a newest ips-cc version, use `./updateIPS.sh`.
 1. `docker save -o testIPS.tar ips-test-environment` Export an image in tar format for later use
 1. `docker load -i testIPS.tar` Import a tar image in Docker
 1. `docker container run --cap-add=NET_ADMIN --cap-add=NET_RAW -ti ips-test-environment /bin/bash` Get a shell  
-(The --cap-add flags are needed to use iptables inside the container).
+(The --cap-add flags are needed to use iptables inside the container).  
+![Screenshot of a failed test](screenshot.png)
