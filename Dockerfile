@@ -4,4 +4,6 @@ RUN apt install -y python3 git build-essential libnetfilter-queue-dev python3-se
 RUN git clone https://github.com/kti/python-netfilterqueue /root/python-netfilterqueue
 RUN git clone https://github.com/0x07cc/ips-cc /root/ips-cc
 RUN cd /root/python-netfilterqueue/ ; python3 setup.py install
-COPY test.py /root/
+COPY docker-scripts/test.py /root/
+COPY docker-scripts/entrypoint.py /root/
+CMD /usr/bin/env python3 /root/entrypoint.py

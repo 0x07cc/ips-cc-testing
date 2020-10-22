@@ -39,7 +39,8 @@ def runCommand(cmdList):
     if process.returncode == 0:
         testOK(process.stdout.decode().rstrip("\n"))
     else:
-        testKO(f"Error Code: {process.returncode}")
+        cmdString = " ".join(cmdList)
+        testKO(f"Error executing '{cmdString}' Code: {process.returncode}")
 
 # Function that executes a nc client to localhost,
 # sending the provided string and then closing the connection.
@@ -135,8 +136,9 @@ else:
 # Tests without IPS
 print(f"{lightCyan}Testing communication without IPS: {noColor}")
 
-# Starting the receiver server
+# Starting the receiver server with listening timeout
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.setdefaulttimeout(5)
 try:
     server.bind(("0.0.0.0", testPort))
     server.listen(10)
@@ -151,16 +153,20 @@ for test in range(1, 6):
     ncThread = threading.Thread(target=startNetcatClient, args=(stringToSend,))
     ncThread.start()
 
-    # Server blocking method TODO ADD TIMEOUT
-    clientsocket, addr = server.accept()
+    # Server blocking method (with timeout)
+    try:
+        clientsocket, addr = server.accept()
 
-    receivedBytes = clientsocket.recv(1024)
-    clientsocket.close()
+        receivedBytes = clientsocket.recv(1024)
+        clientsocket.close()
 
-    if receivedBytes.decode().rstrip("\n") == stringToSend:
-        testOK(f"Test string received (length: {len(stringToSend)})")
-    else:
-        testKO(f"Test string not received (length: {len(stringToSend)})")
+        if receivedBytes.decode().rstrip("\n") == stringToSend:
+            testOK(f"Test string received (length: {len(stringToSend)})")
+        else:
+            testKO(f"Wrong test string received (length: {len(stringToSend)})")
+    except socket.timeout:
+        testKO(f"Test string not received (length: {len(stringToSend)})"
+
     time.sleep(0.3)
 
 # Scaricare (o copiare) l'IPS
