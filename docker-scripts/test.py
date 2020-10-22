@@ -137,8 +137,8 @@ else:
 print(f"{lightCyan}Testing communication without IPS: {noColor}")
 
 # Starting the receiver server with listening timeout
-socket.setdefaulttimeout(5)
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.settimeout(3)
 try:
     server.bind(("0.0.0.0", testPort))
     server.listen(10)
