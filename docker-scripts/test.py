@@ -137,8 +137,8 @@ else:
 print(f"{lightCyan}Testing communication without IPS: {noColor}")
 
 # Starting the receiver server with listening timeout
+socket.setdefaulttimeout(5)
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.setdefaulttimeout(5)
 try:
     server.bind(("0.0.0.0", testPort))
     server.listen(10)
@@ -165,7 +165,7 @@ for test in range(1, 6):
         else:
             testKO(f"Wrong test string received (length: {len(stringToSend)})")
     except socket.timeout:
-        testKO(f"Test string not received (length: {len(stringToSend)})"
+        testKO(f"Test string not received (length: {len(stringToSend)})")
 
     time.sleep(0.3)
 
