@@ -1,18 +1,19 @@
 # A testing environment for [ips-cc](https://github.com/0x07cc/ips-cc)
 A Docker container that downloads the latest Debian Docker image (~50MB), installs all the dependencies for ips-cc, installs NetfilterQueue and ips-cc.  
 After the installation you can use the provided `./start.sh` script to test ips-cc.  
-To git pull (update) to a newest ips-cc version, use `./start.sh` and choose the update option.
+To `git pull` (update) to a newest ips-cc version, use `./start.sh` and choose the update option.
 
 ## Requirements:
-1. `bash`
-1. `docker`
-1. `sudo`
+1. `bash`, `sudo`, `grep`, `awk`
+1. `docker`, `git`
+1. At least 1.5GB of free disk space
+1. An Internet connection in order to build the container
 
 ## Arch Linux: Quick Start
 1. Install required programs: `sudo pacman -S docker git`
 1. Start Docker service: `sudo systemctl start docker.service`
-1. Clone this repository: `git clone https://github.com/0x07cc/ips-cc-testing`  
-`cd ips-cc-testing`
+1. Clone this repository: `git clone https://github.com/0x07cc/ips-cc-testing`
+1. Navigate into the directory: `cd ips-cc-testing`
 1. Build the Docker image: `sudo docker build -t ips-test-environment .`  
 (Note that this will take like 5 minutes and will result in a 600+ MB image)
 1. Start the testing script `./start.sh` and choose the first option
