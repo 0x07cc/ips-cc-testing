@@ -11,6 +11,7 @@ import re
 # Parameters
 nfqueue = 33
 testPort = 2222
+forbiddenWord = "CC{test}"
 
 lightBlue = '\033[1;34m'
 lightCyan = '\033[1;36m'
@@ -21,14 +22,18 @@ passedTests = 0
 failedTests = 0
 
 # Function that outputs the given text in green
+# if it contains a useful message.
 def testOK(string):
-    print(f"{lightGreen}{string}{noColor}")
+    if len(string.strip()) > 0:
+        print(f"{lightGreen}{string}{noColor}")
     global passedTests
     passedTests += 1
 
 # Function that outputs the given text in red
+# if it contains a useful message.
 def testKO(string):
-    print(f"{red}{string}{noColor}")
+    if len(string.strip()) > 0:
+        print(f"{red}{string}{noColor}")
     global failedTests
     failedTests += 1
 
@@ -82,12 +87,12 @@ def getRules():
     for riga2 in nfqueueRules:
         found = re.search("spt:(\d)+", riga2)
         if found is not None:
-            porta = int(riga2[found.start()+4:found.end()])
+            porta = int(riga2[found.start() + 4:found.end()])
             rules[porta] = "OUTPUT"
         else:
             found = re.search("dpt:(\d)+", riga2)
             if found is not None:
-                porta = int(riga2[found.start()+4:found.end()])
+                porta = int(riga2[found.start() + 4:found.end()])
                 rules[porta] = "INPUT"
             else:
                 testKO("Error while parsing iptables rules list")
@@ -147,7 +152,7 @@ except OSError:
     exit(-1)
 
 for test in range(1, 6):
-    stringToSend = "IPS-Testing-Script-"*2*test
+    stringToSend = "IPS-Testing-Script-" * 2 * test
 
     # Starting the client before the server blocking method
     ncThread = threading.Thread(target=startNetcatClient, args=(stringToSend,))
@@ -164,23 +169,116 @@ for test in range(1, 6):
             testOK(f"Test string received (length: {len(stringToSend)})")
         else:
             testKO(f"Wrong test string received (length: {len(stringToSend)})")
-    except socket.timeout:
+    except (socket.timeout, ConnectionResetError):
         testKO(f"Test string not received (length: {len(stringToSend)})")
 
     time.sleep(0.3)
 
-# Scaricare (o copiare) l'IPS
-# Inserire regola
+# Adding the iptables rule
+print(f"{lightCyan}Adding an iptables rule: {noColor}", end="")
+runCommand(['iptables', '-I', 'INPUT', '-j', 'NFQUEUE', '--queue-num', '33',
+            '-p', 'tcp', '--dport', str(testPort)])
 
-# Avviare IPS
-# Avviare server in ascolto
-# Avviare client con echo "goodword" | nc -v -q 1 127.0.0.1 2222
-# Verificare che il server abbia ricevuto la stringa
+# Testing if the rule exists
+rules = getRules()
+if len(rules) != 0:
+    if rules.get(testPort) is None:
+        testKO("Fail")
+    else:
+        testOK("Success!")
+else:
+    testKO("Fail")
 
-# Avviare client con echo "badword" | nc -v -q 1 127.0.0.1 2222
-# Verificare che il server non abbia ricevuto la stringa
+# Checking if the IPS executable exists
+if not os.path.isfile('/root/ips-cc/main.py'):
+    testKO("ips-cc main.py not found in /root/ips-cc/")
+else:
+    print(f"{lightCyan}Starting IPS: {noColor}", end="")
+    # Starting IPS from a temp directory, to avoid saving logs and
+    # "dropped packets" files in the git directory.
+    ipsCommand = ['/usr/bin/env', 'python3', '/root/ips-cc/main.py']
+    tempDir = '/var/tmp/'
+    ipsProc = subprocess.Popen(ipsCommand, stdout=subprocess.PIPE, cwd=tempDir)
 
-# Summary results
+    # Checking if it is running
+    if ipsProc.poll() is None:
+        testOK("Success!")
+    else:
+        testKO("Fail")
+
+    # Tests with IPS
+    print(f"{lightCyan}Testing communication with IPS: {noColor}")
+
+    # Tests with permitted words
+    for goodTest in range(1, 6):
+        stringToSend = "IPS-Testing-Script-" * 2 * goodTest
+
+        # Starting the client before the server blocking method
+        ncThread = threading.Thread(target=startNetcatClient,
+                                    args=(stringToSend,))
+        ncThread.start()
+
+        # Server blocking method (with timeout)
+        try:
+            clientsocket, addr = server.accept()
+
+            receivedBytes = clientsocket.recv(1024)
+            clientsocket.close()
+
+            if receivedBytes.decode().rstrip("\n") == stringToSend:
+                testOK(f"Test string received (length: {len(stringToSend)})")
+            else:
+                testKO("Wrong test string received (length: "
+                       + str(len(stringToSend)) + ")")
+        except (socket.timeout, ConnectionResetError):
+            testKO(f"Test string not received (length: {len(stringToSend)})")
+
+        time.sleep(0.3)
+
+    # Tests with forbidden words
+    for badTest in range(1, 6):
+        stringToSend = f"IPS-{forbiddenWord}-Script-" * 2 * badTest
+
+        # Starting the client before the server blocking method
+        ncThread = threading.Thread(target=startNetcatClient,
+                                    args=(stringToSend,))
+        ncThread.start()
+
+        # Server blocking method (with timeout)
+        try:
+            clientsocket, addr = server.accept()
+
+            receivedBytes = clientsocket.recv(1024)
+            clientsocket.close()
+
+            if receivedBytes.decode().rstrip("\n") == stringToSend:
+                testKO("Test string containing forbidden words received"
+                       + f" (length: {len(stringToSend)})")
+            else:
+                testKO("Wrong test string received (length: "
+                       + str(len(stringToSend)) + ")")
+        except (socket.timeout, ConnectionResetError):
+            testOK(f"Test string containing forbidden words not received"
+                   + f" (length: {len(stringToSend)})")
+
+        time.sleep(0.3)
+
+    # Stopping the receiver server
+    server.close()
+
+    # Sending SIGINT to the IPS Process to kill it and verifying its status.
+    print(f"{lightCyan}Shutting down IPS: {noColor}", end="")
+    ipsProc.send_signal(2)
+    time.sleep(0.5)
+    if ipsProc.poll() == 0:
+        testOK("Success!")
+    else:
+        testKO("Fail")
+
+print(f"{lightCyan}Removing the iptables rule{noColor}")
+runCommand(['iptables', '-D', 'INPUT', '1'])
+
+# Summary of the results
 totalTests = passedTests + failedTests
 resultColor = red + "⚠️  "
 if passedTests == totalTests:

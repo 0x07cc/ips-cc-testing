@@ -30,8 +30,8 @@ if os.geteuid() != 0:
     print(f"This script is meant to be executed in a container!{noColor}")
     exit(-1)
 
-longHash = runCommand(['git', '-C',  '/root/ips-cc/', 'rev-parse', 'HEAD'])
-shrtHash = runCommand(['git', '-C',  '/root/ips-cc/', 'rev-parse', '--short', 'HEAD'])
+longHash = runCommand(['git', '-C', '/root/ips-cc/', 'rev-parse', 'HEAD'])
+shrtHash = runCommand(['git', '-C', '/root/ips-cc/', 'rev-parse', '--short', 'HEAD'])
 print(f"Current git hash: {lightBlue}{longHash}{noColor}")
 print(f"Short hash: {lightBlue}{shrtHash}{noColor}")
 
@@ -40,7 +40,7 @@ inputStr = input("[3]> ")
 if inputStr == '0':
     os.system("/usr/bin/env python3 /root/test.py")
 elif inputStr == '1':
-    r = runCommand(['git', '-C',  '/root/ips-cc/', 'pull', '-v', '--ff-only'])
+    r = runCommand(['git', '-C', '/root/ips-cc/', 'pull', '-v', '--ff-only'])
     print(r)
 elif inputStr == '2':
     os.system("bash")
