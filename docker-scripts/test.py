@@ -7,12 +7,15 @@ import socket
 import time
 import threading
 import re
+import requests
 
 # Parameters
 nfqueue = 33
 testPort = 2222
 forbiddenWord = "CC{test}"
+githubToken = ""
 
+statusesURL = "https://api.github.com/repos/0x07cc/ips-cc/statuses/"
 lightBlue = '\033[1;34m'
 lightCyan = '\033[1;36m'
 lightGreen = '\033[1;32m'
@@ -111,7 +114,7 @@ if os.geteuid() != 0:
 version = sys.version.split("\n")[0]
 versionNumber = version[0:3]
 print(f"{lightCyan}python3  version: {noColor}", end="")
-if float(versionNumber) >= 3.8:
+if float(versionNumber) > 3.6:
     testOK(version)
 else:
     testKO(version)
@@ -235,6 +238,8 @@ else:
 
         time.sleep(0.3)
 
+    time.sleep(0.3)
+
     # Tests with forbidden words
     for badTest in range(1, 6):
         stringToSend = f"IPS-{forbiddenWord}-Script-" * 2 * badTest
@@ -281,7 +286,70 @@ runCommand(['iptables', '-D', 'INPUT', '1'])
 # Summary of the results
 totalTests = passedTests + failedTests
 resultColor = red + "⚠️  "
+testSucceded = False
 if passedTests == totalTests:
     resultColor = lightGreen
+    testSucceded = True
 resultString = f"Passed Tests: {resultColor}{passedTests} of {totalTests}"
 print(f"{lightCyan}{resultString}{noColor}")
+
+# TODO print(ipsProc.stderr.peek().decode())
+
+# Reporting test results to GitHub
+# Verifying if the IPS files have been modified
+statusCmd = ['git', '-C', '/root/ips-cc/', 'status', '--porcelain']
+status = subprocess.run(statusCmd, stdout=subprocess.PIPE, timeout=5)
+# If the git status command has failed, quit
+if status.returncode != 0:
+    testKO("git status command failed, not updating checks on GitHub")
+    exit(-1)
+else:
+    statusOutput = status.stdout.decode().rstrip("\n")
+    # If len(statusOutput) > 0, the IPS files have been modified:
+    # the program will not update the checks on GitHub and quit.
+    if len(statusOutput) > 0:
+        print(f"⚠️  {lightCyan}Changes detected to IPS files{noColor}")
+        exit(0)
+
+    # Quit if there is no token
+    if len(githubToken) < 1:
+        exit(0)
+
+    # Retrieving the Hash of the commit to validate
+    hashCmd = ['git', '-C', '/root/ips-cc/', 'rev-parse', 'HEAD']
+    hashProc = subprocess.run(hashCmd, stdout=subprocess.PIPE, timeout=5)
+    # If the git rev-parse command has failed, quit
+    if hashProc.returncode != 0:
+        testKO("git rev-parse command failed, not updating checks on GitHub")
+        exit(-1)
+
+    print(f"{lightCyan}Setting the check mark on GitHub{noColor}")
+    hashOutput = hashProc.stdout.decode().rstrip("\n")
+    print(f"{lightCyan}Hash: {lightGreen}{hashOutput}{noColor}")
+
+    # Data that will be sent to GitHub
+    url = statusesURL + hashOutput
+    today = time.strftime("%d-%m-%Y")
+    headers = {"Accept": "application/vnd.github.v3+json",
+               "Authorization": f"token {githubToken}"}
+
+    if testSucceded is True:
+        jsonData = {"state": "success",
+                    "context": "ips-test-environment",
+                    "description": f"All tests passed on {today}"}
+    else:
+        jsonData = {"state": "failure",
+                    "context": "ips-test-environment",
+                    "description": f"Passed Tests: {passedTests} "
+                    + f"of {totalTests} on {today}"}
+    # Sending data
+    try:
+        r = requests.post(url, headers=headers, json=jsonData)
+        if r.ok:
+            testOK("Check mark on GitHub set correctly")
+        else:
+            testKO("Error while setting check mark on GitHub")
+            print(f"{lightCyan}Response code: {r.status_code}")
+            print(f"Response: {r.text}{noColor}")
+    except requests.exceptions.RequestException:
+        testKO("Cannot update the check mark on GitHub")

@@ -35,8 +35,9 @@ shrtHash = runCommand(['git', '-C', '/root/ips-cc/', 'rev-parse', '--short', 'HE
 print(f"Current git hash: {lightBlue}{longHash}{noColor}")
 print(f"Short hash: {lightBlue}{shrtHash}{noColor}")
 
-print("0: Run testing script\n1: Update IPS via GitHub\n2: Bash\n3: Exit")
-inputStr = input("[3]> ")
+print("0: Run testing script\n1: Update IPS via GitHub\n2: Bash")
+print("3: Edit GitHub Token\n4: Exit")
+inputStr = input("[4]> ")
 if inputStr == '0':
     os.system("/usr/bin/env python3 /root/test.py")
 elif inputStr == '1':
@@ -44,5 +45,20 @@ elif inputStr == '1':
     print(r)
 elif inputStr == '2':
     os.system("bash")
+elif inputStr == '3':
+    # Edit token line in /root/test.py file
+    tokenStr = input("New token: ")
+    if tokenStr != "":
+        inputFile = open("/root/test.py", 'r')
+        inputList = inputFile.readlines()
+        inputFile.close()
+        for line in inputList:
+            if "githubToken =" in line:
+                lineNum = inputList.index(line)
+                inputList[lineNum] = f'githubToken = "{tokenStr}"\n'
+                outputFile = open("/root/test.py", 'w')
+                outputFile.writelines(inputList)
+                outputFile.close()
+                print(f"New token added: {tokenStr}")
 
 print("Leaving the container.")
